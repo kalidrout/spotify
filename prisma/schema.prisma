@@ -1,0 +1,132 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model playlists {
+  id          String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name        String
+  cover_image String
+  user_id     String    @db.Uuid
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+  tracks      tracks[]
+  categories  playlist_categories[]
+}
+
+model tracks {
+  id          String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  title       String
+  artist      String
+  duration    String
+  album_art   String
+  audio_url   String
+  playlist_id String    @db.Uuid
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+  playlist    playlists @relation(fields: [playlist_id], references: [id], onDelete: Cascade)
+}
+
+model artists {
+  id             String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  user_id        String          @db.Uuid
+  name           String
+  bio            String?
+  profile_image  String?
+  verified       Boolean         @default(false)
+  created_at     DateTime        @default(now()) @db.Timestamptz(6)
+  submissions    submissions[]
+  approved_songs approved_songs[]
+}
+
+model submissions {
+  id           String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  artist_id    String    @db.Uuid
+  title        String
+  description  String?
+  audio_url    String
+  cover_image  String
+  status       String    @default("pending")
+  created_at   DateTime  @default(now()) @db.Timestamptz(6)
+  artist       artists   @relation(fields: [artist_id], references: [id], onDelete: Cascade)
+  staff_actions staff_actions[]
+}
+
+model approved_songs {
+  id            String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  submission_id String   @db.Uuid
+  artist_id     String   @db.Uuid
+  title         String
+  audio_url     String
+  cover_image   String
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+  artist        artists  @relation(fields: [artist_id], references: [id])
+}
+
+model staff_members {
+  id          String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  discord_id  String    @unique
+  username    String
+  avatar_url  String?
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+  actions     staff_actions[]
+}
+
+model staff_actions {
+  id            String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  staff_id      String      @db.Uuid
+  submission_id String      @db.Uuid
+  action        String
+  note          String?
+  created_at    DateTime    @default(now()) @db.Timestamptz(6)
+  staff         staff_members @relation(fields: [staff_id], references: [id], onDelete: SetNull)
+  submission    submissions   @relation(fields: [submission_id], references: [id], onDelete: SetNull)
+}
+
+model categories {
+  id          String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name        String    @unique
+  description String?
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+  playlists   playlist_categories[]
+}
+
+model playlist_categories {
+  playlist_id String     @db.Uuid
+  category_id String     @db.Uuid
+  created_at  DateTime   @default(now()) @db.Timestamptz(6)
+  playlist    playlists  @relation(fields: [playlist_id], references: [id], onDelete: Cascade)
+  category    categories @relation(fields: [category_id], references: [id], onDelete: Cascade)
+
+  @@id([playlist_id, category_id])
+}
+
+model user_preferences {
+  user_id        String    @id @db.Uuid
+  theme          String    @default("dark")
+  autoplay       Boolean   @default(true)
+  private_profile Boolean  @default(false)
+  created_at     DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime  @default(now()) @db.Timestamptz(6)
+}
+
+model user_subscriptions {
+  user_id               String    @id @db.Uuid
+  tier                  String    @default("free")
+  stripe_customer_id    String?
+  stripe_subscription_id String?
+  subscription_status   String?
+  current_period_start  DateTime? @db.Timestamptz(6)
+  current_period_end    DateTime? @db.Timestamptz(6)
+  created_at           DateTime   @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime   @default(now()) @db.Timestamptz(6)
+}
+
+model subscription_usage {
+  user_id        String    @id @db.Uuid
+  playlist_count Int       @default(0)
+  song_count     Int       @default(0)
+  last_updated   DateTime  @default(now()) @db.Timestamptz(6)
+}
